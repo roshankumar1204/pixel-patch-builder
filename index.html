@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rizhu – Pixel Patch Builder</title>
+  <meta name="description" content="Draw LED pixel layouts, auto-address DMX universes and export a CSV fixture list for MADRIX 5.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111827'/%3E%3Ccircle cx='9' cy='9' r='3' fill='%23f472b6'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%23a78bfa'/%3E%3Ccircle cx='23' cy='9' r='3' fill='%2360a5fa'/%3E%3Ccircle cx='9' cy='16' r='3' fill='%23a78bfa'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2360a5fa'/%3E%3Ccircle cx='23' cy='16' r='3' fill='%2334d399'/%3E%3Ccircle cx='9' cy='23' r='3' fill='%2360a5fa'/%3E%3Ccircle cx='16' cy='23' r='3' fill='%2334d399'/%3E%3Ccircle cx='23' cy='23' r='3' fill='%23fbbf24'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://rizhu.netlify.app/" target="_blank" rel="noopener">
+      <span class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span class="brand-name">Rizhu</span>
+      <span class="brand-sub">Pixel Patch Builder</span>
+    </a>
+    <div class="topbar-actions">
+      <button id="btn-new" class="ghost" title="Start a new empty project">New</button>
+      <button id="btn-open" class="ghost" title="Open a saved .rizhu.json project">Open</button>
+      <button id="btn-save" class="ghost" title="Save project as JSON">Save</button>
+      <input id="file-open" type="file" accept=".json,application/json" hidden>
+      <button id="btn-export" class="primary" title="Download the CSV fixture list for MADRIX 5">Export CSV for MADRIX</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Left: project + elements -->
+    <aside class="panel left">
+      <section>
+        <h2>Output settings</h2>
+        <div class="form" id="settings-form"></div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Layout elements</h2>
+        </div>
+        <div class="add-row">
+          <button data-add="grid">+ Grid</button>
+          <button data-add="strip">+ Strip</button>
+          <button data-add="circle">+ Ring</button>
+        </div>
+        <ul id="element-list" class="element-list"></ul>
+      </section>
+
+      <section id="element-editor-wrap">
+        <h2 id="editor-title">Element</h2>
+        <div class="form" id="element-form"></div>
+        <div class="editor-actions">
+          <button id="btn-up" title="Move earlier in wiring order">↑</button>
+          <button id="btn-down" title="Move later in wiring order">↓</button>
+          <button id="btn-dup">Duplicate</button>
+          <button id="btn-del" class="danger">Delete</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Center: canvas -->
+    <section class="stage">
+      <div class="stage-toolbar">
+        <button id="btn-fit" title="Fit layout to view (F)">Fit</button>
+        <label class="chk"><input type="checkbox" id="opt-path" checked> Wiring path</label>
+        <label class="chk"><input type="checkbox" id="opt-numbers"> Pixel numbers</label>
+        <label class="chk"><input type="checkbox" id="opt-grid" checked> Grid</label>
+        <span class="sep"></span>
+        <button id="btn-bg" title="Load a photo or plan to trace over">Background…</button>
+        <input id="file-bg" type="file" accept="image/*" hidden>
+        <label class="bg-ctl" id="bg-ctl" hidden>
+          width <input type="number" id="bg-width" min="1" value="64">
+          opacity <input type="range" id="bg-opacity" min="0" max="1" step="0.05" value="0.5">
+          <button id="btn-bg-clear" class="ghost small">✕</button>
+        </label>
+        <span class="hint">Drag pixels to move an element · drag empty space to pan · scroll to zoom</span>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+        <div id="tooltip" class="tooltip" hidden></div>
+      </div>
+    </section>
+
+    <!-- Right: summary -->
+    <aside class="panel right">
+      <section>
+        <h2>Summary</h2>
+        <div class="stats" id="stats"></div>
+      </section>
+      <section>
+        <h2>Checks</h2>
+        <ul class="warnings" id="warnings"></ul>
+      </section>
+      <section class="wiring">
+        <div class="section-head">
+          <h2>Wiring sheet</h2>
+          <div>
+            <button id="btn-wiring-csv" class="small">CSV</button>
+            <button id="btn-print" class="small">Print</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table id="wiring-table"></table></div>
+      </section>
+      <section>
+        <h2>Import into MADRIX 5</h2>
+        <ol class="howto">
+          <li>Patch Editor → <b>File → Import Fixture List…</b></li>
+          <li>Choose the CSV, tick <b>Use Header Line</b> (1 line), separator as set above.</li>
+          <li>Assign columns: Position X/Y/Z, DMX Universe, DMX Channel. Pick a matching pixel fixture from the library.</li>
+          <li>Finish – the whole layout is patched.</li>
+        </ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <span>Made by <a href="https://rizhu.netlify.app/" target="_blank" rel="noopener">Rizhu</a></span>
+    <span class="muted">Works offline · your project stays in this browser</span>
+  </footer>
+
+  <script src="src/core.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

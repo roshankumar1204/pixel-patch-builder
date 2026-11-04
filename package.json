@@ -1,0 +1,9 @@
+{
+  "name": "rizhu-pixel-patch-builder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Draw LED pixel layouts, auto-address DMX universes and export a CSV fixture list for MADRIX 5.",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}
