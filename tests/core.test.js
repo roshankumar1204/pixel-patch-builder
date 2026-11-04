@@ -135,3 +135,89 @@ test('warns above the largest MADRIX licence', () => {
   const p = Core.buildPatch(project([Core.createElement('grid', { cols: 600, rows: 600 })]));
   assert.ok(p.warnings.some((w) => /largest MADRIX 5 licence/.test(w.text)));
 });
+
+test('rect frame walks the outline clockwise from the start corner', () => {
+  const px = Core.generatePixels(Core.createElement('rect', { width: 3, height: 3 }));
+  assert.deepEqual(px.map((p) => [p.x, p.y]), [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [0, 2], [0, 1]]);
+  const ccw = Core.generatePixels(Core.createElement('rect', { width: 3, height: 3, startCorner: 'BR', clockwise: false }));
+  assert.deepEqual(ccw.slice(0, 3).map((p) => [p.x, p.y]), [[2, 2], [2, 1], [2, 0]]);
+});
+
+test('arc covers the sweep including both ends', () => {
+  const px = Core.generatePixels(Core.createElement('circle', { cx: 10, cy: 10, radius: 10, count: 3, startAngle: 180, sweep: 180 }));
+  assert.deepEqual(px.map((p) => [p.x, p.y]), [[0, 10], [10, 0], [20, 10]]);
+});
+
+test('path spreads pixels evenly by spacing', () => {
+  const px = Core.generatePixels(Core.createElement('path', { points: [[0, 0], [10, 0], [10, 5]], spacing: 1 }));
+  assert.equal(px.length, 16);
+  assert.deepEqual([px[15].x, px[15].y], [10, 5]);
+  const closed = Core.generatePixels(Core.createElement('path', { points: [[0, 0], [4, 0], [4, 4], [0, 4]], closed: true }));
+  assert.equal(closed.length, 16);
+});
+
+test('dot text uses the 5x7 font', () => {
+  const px = Core.generatePixels(Core.createElement('text', { text: 'I', x: 0, y: 0 }));
+  // "I" = top bar 3, stem 5, bottom bar 3
+  assert.equal(px.length, 11);
+  const unknown = Core.generatePixels(Core.createElement('text', { text: '~' }));
+  assert.ok(unknown.length > 0); // falls back to "?"
+});
+
+test('line text uses the Hershey single-stroke font', () => {
+  const px = Core.generatePixels(Core.createElement('text', { text: 'L', font: 'line', height: 21, spacing: 1 }));
+  const xs = px.map((p) => p.x), ys = px.map((p) => p.y);
+  assert.equal(Math.min(...ys), 0);
+  assert.equal(Math.max(...ys), 21);
+  assert.ok(Math.max(...xs) - Math.min(...xs) >= 7);
+});
+
+test('bitmap mask, invert and order', () => {
+  const el = Core.createElement('bitmap', { mask: ['10', '01'] });
+  assert.deepEqual(Core.generatePixels(el).map((p) => [p.x, p.y]), [[0, 0], [1, 1]]);
+  el.invert = true;
+  assert.deepEqual(Core.generatePixels(el).map((p) => [p.x, p.y]), [[1, 0], [0, 1]]);
+});
+
+test('rotation keeps pixel count and turns the shape', () => {
+  const px = Core.generatePixels(Core.createElement('strip', { x1: 0, y1: 5, x2: 10, y2: 5, count: 11, rotation: 90 }));
+  assert.equal(px.length, 11);
+  assert.ok(px.every((p) => p.x === 5));
+});
+
+test('repeat copies with auto step and new universe per copy', () => {
+  const el = Core.createElement('rect', { width: 3, height: 3, repeatX: 3, repeatY: 2 });
+  const px = Core.generatePixels(el);
+  assert.equal(px.length, 8 * 6);
+  assert.equal(Core.pixelCount(el), 48);
+  assert.deepEqual([px[8].x, px[8].y], [4, 0]); // width 2 + 2 gap
+  el.repeatNewUniverse = true;
+  const p = Core.buildPatch(project([el]));
+  assert.equal(p.totals.universes, 6);
+});
+
+test('points keep file order and their own z', () => {
+  const px = Core.generatePixels(Core.createElement('points', { points: [[5, 5, 2], [0, 0]] }));
+  assert.deepEqual(px.map((p) => [p.x, p.y, p.z]), [[5, 5, 2], [0, 0, 0]]);
+});
+
+test('translateElement moves every shape type', () => {
+  for (const type of Object.keys(Core.ELEMENT_DEFAULTS)) {
+    const el = Core.createElement(type);
+    const before = Core.generatePixels(el);
+    Core.translateElement(el, 3, 2);
+    const after = Core.generatePixels(el);
+    assert.equal(after.length, before.length, type);
+    assert.deepEqual([after[0].x - before[0].x, after[0].y - before[0].y], [3, 2], type);
+  }
+});
+
+test('line text never stacks two pixels on one spot', () => {
+  const px = Core.generatePixels(Core.createElement('text', { text: 'LED Neon 2026', font: 'line', height: 14 }));
+  assert.equal(new Set(px.map((p) => p.x + ',' + p.y)).size, px.length);
+});
+
+test('sharp path corners do not stack pixels', () => {
+  const px = Core.generatePixels(Core.createElement('path', { points: [[0, 20], [10, 0], [20, 20]], spacing: 0.7 }));
+  assert.equal(new Set(px.map((p) => p.x + ',' + p.y)).size, px.length);
+});

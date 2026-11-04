@@ -36,10 +36,23 @@
         <div class="section-head">
           <h2>Layout elements</h2>
         </div>
+        <div class="tool-group-label">Shapes</div>
         <div class="add-row">
-          <button data-add="grid">+ Grid</button>
-          <button data-add="strip">+ Strip</button>
-          <button data-add="circle">+ Ring</button>
+          <button data-add="grid" title="LED matrix / panel">▦ Grid</button>
+          <button data-add="strip" title="Straight line of pixels">― Strip</button>
+          <button data-add="circle" title="Ring or arc (set Sweep)">◯ Ring/Arc</button>
+          <button data-add="rect" title="Outline of a window, door or panel">▭ Frame</button>
+          <button data-add="text" title="LED letters – dot matrix or single-line strip">A Text</button>
+          <button id="btn-draw" title="Click points on the canvas to trace any shape">✎ Draw path</button>
+        </div>
+        <div class="tool-group-label">Import</div>
+        <div class="add-row">
+          <button id="btn-import-image" title="Turn a logo or picture into a filled pixel layout">▣ Image</button>
+          <button id="btn-import-svg" title="Logo or CAD outline as LED lines">◇ SVG</button>
+          <button id="btn-import-csv" title="LED positions from MariMapper or any tool (x, y, z columns)">⋮ Points</button>
+          <input id="file-image" type="file" accept="image/*" hidden>
+          <input id="file-svg" type="file" accept=".svg,image/svg+xml" hidden>
+          <input id="file-points" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden>
         </div>
         <ul id="element-list" class="element-list"></ul>
       </section>
@@ -74,6 +87,13 @@
           <button id="btn-bg-clear" class="ghost small">✕</button>
         </label>
         <span class="hint">Drag pixels to move an element · drag empty space to pan · scroll to zoom</span>
+      </div>
+      <div class="draw-banner" id="draw-banner" hidden>
+        <span><b>Drawing a path:</b> click to add points · click the first point to close · drag to pan · Backspace removes the last point</span>
+        <span>
+          <button id="btn-draw-done" class="primary small">Done (Enter)</button>
+          <button id="btn-draw-cancel" class="small">Cancel (Esc)</button>
+        </span>
       </div>
       <div class="canvas-wrap" id="canvas-wrap">
         <canvas id="canvas"></canvas>
@@ -118,7 +138,10 @@
     <span class="muted">Works offline · your project stays in this browser</span>
   </footer>
 
+  <script src="vendor/hershey-font.js"></script>
+  <script src="vendor/svg-path-properties.js"></script>
   <script src="src/core.js"></script>
+  <script src="src/importers.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const Core = window.PatchCore;
+  const Imp = window.RizhuImport;
   const STORAGE_KEY = 'rizhu.project.v1';
 
   // ---------- state ----------
@@ -93,40 +94,108 @@
     { key: 'csvSeparator', label: 'CSV separator', type: 'select',
       options: [[',', 'Comma ,'], [';', 'Semicolon ;'], ['\t', 'Tab']] },
   ];
+  const CORNERS = [['TL', 'Top left'], ['TR', 'Top right'], ['BL', 'Bottom left'], ['BR', 'Bottom right']];
+  const NAME = { key: 'name', label: 'Name', type: 'text', full: true };
+  const Z = { key: 'z', label: 'Z (depth)', type: 'number', min: 0 };
+  const TRANSFORM_FIELDS = [
+    { type: 'heading', label: 'Rotate & repeat' },
+    { key: 'rotation', label: 'Rotate °', type: 'number' },
+    { type: 'spacer' },
+    { key: 'repeatX', label: 'Copies across', type: 'number', min: 1 },
+    { key: 'repeatY', label: 'Copies down', type: 'number', min: 1 },
+    { key: 'repeatStepX', label: 'Step X (0 = auto)', type: 'number', min: 0, show: (e) => e.repeatX > 1 },
+    { key: 'repeatStepY', label: 'Step Y (0 = auto)', type: 'number', min: 0, show: (e) => e.repeatY > 1 },
+    { key: 'repeatNewUniverse', label: 'Each copy starts a new universe', type: 'check', show: (e) => e.repeatX > 1 || e.repeatY > 1 },
+  ];
   const COMMON_CHECKS = [
+    { type: 'heading', label: 'Addressing' },
     { key: 'newUniverse', label: 'Start on a new universe', type: 'check' },
     { key: 'newPort', label: 'Start on a new controller port', type: 'check' },
   ];
+  const withCommon = (f) => f.concat(TRANSFORM_FIELDS, COMMON_CHECKS);
   const ELEMENT_FIELDS = {
-    grid: [
-      { key: 'name', label: 'Name', type: 'text', full: true },
+    grid: withCommon([
+      NAME,
       { key: 'x', label: 'X (left)', type: 'number' }, { key: 'y', label: 'Y (top)', type: 'number' },
       { key: 'cols', label: 'Columns', type: 'number', min: 1 }, { key: 'rows', label: 'Rows', type: 'number', min: 1 },
-      { key: 'spacing', label: 'Spacing', type: 'number', min: 1 }, { key: 'z', label: 'Z (depth)', type: 'number', min: 0 },
-      { key: 'startCorner', label: 'Data starts at', type: 'select',
-        options: [['TL', 'Top left'], ['TR', 'Top right'], ['BL', 'Bottom left'], ['BR', 'Bottom right']] },
+      { key: 'spacing', label: 'Spacing', type: 'number', min: 1 }, Z,
+      { key: 'startCorner', label: 'Data starts at', type: 'select', options: CORNERS },
       { key: 'direction', label: 'Runs along', type: 'select', options: [['rows', 'Rows →'], ['cols', 'Columns ↓']] },
       { key: 'snake', label: 'Snake / zig-zag wiring', type: 'check' },
-    ].concat(COMMON_CHECKS),
-    strip: [
-      { key: 'name', label: 'Name', type: 'text', full: true },
+    ]),
+    strip: withCommon([
+      NAME,
       { key: 'x1', label: 'Start X', type: 'number' }, { key: 'y1', label: 'Start Y', type: 'number' },
       { key: 'x2', label: 'End X', type: 'number' }, { key: 'y2', label: 'End Y', type: 'number' },
-      { key: 'count', label: 'Pixels', type: 'number', min: 1 }, { key: 'z', label: 'Z (depth)', type: 'number', min: 0 },
-    ].concat(COMMON_CHECKS),
-    circle: [
-      { key: 'name', label: 'Name', type: 'text', full: true },
+      { key: 'count', label: 'Pixels', type: 'number', min: 1 }, Z,
+    ]),
+    circle: withCommon([
+      NAME,
       { key: 'cx', label: 'Centre X', type: 'number' }, { key: 'cy', label: 'Centre Y', type: 'number' },
       { key: 'radius', label: 'Radius', type: 'number', min: 1 }, { key: 'count', label: 'Pixels', type: 'number', min: 1 },
-      { key: 'startAngle', label: 'Start angle °', type: 'number' }, { key: 'z', label: 'Z (depth)', type: 'number', min: 0 },
+      { key: 'startAngle', label: 'Start angle °', type: 'number' },
+      { key: 'sweep', label: 'Sweep ° (360 = ring)', type: 'number', min: 1 },
+      Z, { type: 'spacer' },
       { key: 'clockwise', label: 'Clockwise', type: 'check' },
-    ].concat(COMMON_CHECKS),
+    ]),
+    rect: withCommon([
+      NAME,
+      { key: 'x', label: 'X (left)', type: 'number' }, { key: 'y', label: 'Y (top)', type: 'number' },
+      { key: 'width', label: 'Pixels across', type: 'number', min: 1 },
+      { key: 'height', label: 'Pixels down', type: 'number', min: 1 },
+      { key: 'spacing', label: 'Spacing', type: 'number', min: 1 }, Z,
+      { key: 'startCorner', label: 'Data starts at', type: 'select', options: CORNERS },
+      { type: 'spacer' },
+      { key: 'clockwise', label: 'Clockwise', type: 'check' },
+    ]),
+    path: withCommon([
+      NAME,
+      { type: 'info', text: (e) => `${e.points.length} corner points – drag the square handles on the canvas. Alt-click a handle to remove it.` },
+      { key: 'mode', label: 'Pixels by', type: 'select', rebuild: true, options: [['spacing', 'Even spacing'], ['count', 'Fixed count']] },
+      { key: 'spacing', label: 'Spacing', type: 'number', min: 0.1, show: (e) => e.mode !== 'count' },
+      { key: 'count', label: 'Pixels', type: 'number', min: 1, show: (e) => e.mode === 'count' },
+      Z,
+      { key: 'closed', label: 'Closed loop', type: 'check' },
+    ]),
+    text: withCommon([
+      NAME,
+      { key: 'text', label: 'Text', type: 'text', full: true },
+      { key: 'font', label: 'Font', type: 'select', full: true, rebuild: true,
+        options: [['dot', '5×7 dots – LED matrix / pixel sign'], ['line', 'Single line – LED strip / neon flex']] },
+      { key: 'x', label: 'X (left)', type: 'number' }, { key: 'y', label: 'Y (top)', type: 'number' },
+      { key: 'pitch', label: 'Dot spacing', type: 'number', min: 1, show: (e) => e.font !== 'line' },
+      { key: 'letterGap', label: 'Gap between letters', type: 'number', min: 0, show: (e) => e.font !== 'line' },
+      { key: 'order', label: 'Wiring', type: 'select', full: true, show: (e) => e.font !== 'line',
+        options: [['letters', 'Letter by letter (columns, snake)'], ['rows', 'Whole line row by row (snake)']] },
+      { key: 'height', label: 'Letter height', type: 'number', min: 3, show: (e) => e.font === 'line' },
+      { key: 'spacing', label: 'Pixel spacing', type: 'number', min: 0.5, show: (e) => e.font === 'line' },
+      Z,
+    ]),
+    bitmap: withCommon([
+      NAME,
+      { type: 'info', text: (e) => `${e.mask[0] ? e.mask[0].length : 0}×${e.mask.length} image mask.` },
+      { key: 'x', label: 'X (left)', type: 'number' }, { key: 'y', label: 'Y (top)', type: 'number' },
+      { key: 'spacing', label: 'Spacing', type: 'number', min: 1 }, Z,
+      { key: 'order', label: 'Wiring', type: 'select', options: [['rows', 'Rows (snake)'], ['cols', 'Columns (snake)']] },
+      { type: 'spacer' },
+      { key: 'invert', label: 'Invert (swap lit / unlit)', type: 'check' },
+    ]),
+    points: withCommon([
+      NAME,
+      { type: 'info', text: (e) => `${e.points.length} imported points, wired in file order.` },
+    ]),
   };
-  const TYPE_LABEL = { grid: 'Grid', strip: 'Strip', circle: 'Ring' };
+  const TYPE_LABEL = {
+    grid: 'Grid', strip: 'Strip', circle: 'Ring', rect: 'Frame', path: 'Path', text: 'Text', bitmap: 'Image', points: 'Points',
+  };
 
-  function buildForm(container, fields, obj, onChange) {
+  function buildForm(container, fields, obj, onChange, onRebuild) {
     container.innerHTML = '';
     fields.forEach((f) => {
+      if (f.show && !f.show(obj)) return;
+      if (f.type === 'heading') { container.appendChild(el('div', { class: 'field full form-heading', text: f.label })); return; }
+      if (f.type === 'spacer') { container.appendChild(el('div', { class: 'field' })); return; }
+      if (f.type === 'info') { container.appendChild(el('div', { class: 'field full form-info', text: f.text(obj) })); return; }
       let input;
       if (f.type === 'select') {
         input = el('select', { 'data-key': f.key });
@@ -137,10 +206,12 @@
         input.checked = !!obj[f.key];
       } else {
         input = el('input', { type: f.type === 'number' ? 'number' : 'text', 'data-key': f.key });
+        if (f.type === 'number') input.step = 'any';
         if (f.min != null) input.min = f.min;
         if (f.placeholder) input.placeholder = f.placeholder;
         input.value = obj[f.key] == null ? '' : obj[f.key];
       }
+      const needsRebuild = f.rebuild || fields.some((g) => g.show && String(g.show).includes('.' + f.key));
       input.addEventListener(f.type === 'text' || f.type === 'number' ? 'input' : 'change', () => {
         let v;
         if (f.type === 'check') v = input.checked;
@@ -148,8 +219,10 @@
           if (input.value === '' || !Number.isFinite(Number(input.value))) return;
           v = Number(input.value);
         } else v = input.value;
+        const before = fields.map((g) => !g.show || g.show(obj)).join();
         obj[f.key] = v;
         onChange(f.key);
+        if (needsRebuild && onRebuild && fields.map((g) => !g.show || g.show(obj)).join() !== before) onRebuild();
       });
       const cls = 'field' + (f.type === 'check' ? ' check' : '') + (f.full ? ' full' : '');
       const label = el('label', { class: cls }, f.type === 'check'
@@ -172,7 +245,7 @@
     const list = $('#element-list');
     list.innerHTML = '';
     if (!project.elements.length) {
-      list.appendChild(el('li', { class: 'empty', text: 'No elements yet – add a grid, strip or ring.' }));
+      list.appendChild(el('li', { class: 'empty', text: 'No elements yet – add a shape above.' }));
     }
     project.elements.forEach((e, i) => {
       const info = patch && patch.elements[i];
@@ -194,7 +267,7 @@
     if (!e) { wrap.hidden = true; return; }
     wrap.hidden = false;
     $('#editor-title').textContent = `${TYPE_LABEL[e.type]} settings`;
-    buildForm($('#element-form'), ELEMENT_FIELDS[e.type], e, () => updateSoon({ list: true }));
+    buildForm($('#element-form'), ELEMENT_FIELDS[e.type], e, () => updateSoon({ list: true }), renderEditor);
   }
 
   function renderSummary() {
@@ -317,23 +390,130 @@
     if (!patch || !patch.bounds) return { x: 0, y: 0 };
     return { x: 0, y: patch.bounds.maxY + 3 };
   }
-  function addElement(type) {
+  function addElement(type, extra) {
     const spot = nextFreeSpot();
     const n = project.elements.filter((e) => e.type === type).length + 1;
     const o = { name: `${TYPE_LABEL[type]} ${n}` };
-    if (type === 'grid') Object.assign(o, { x: spot.x, y: spot.y });
+    const at = { x: spot.x, y: spot.y };
     if (type === 'strip') Object.assign(o, { x1: spot.x, y1: spot.y, x2: spot.x + 29, y2: spot.y });
-    if (type === 'circle') Object.assign(o, { cx: spot.x + 8, cy: spot.y + 8 });
+    else if (type === 'circle') Object.assign(o, { cx: spot.x + 8, cy: spot.y + 8 });
+    else if (type === 'path') Object.assign(o, { points: [[spot.x, spot.y], [spot.x + 20, spot.y], [spot.x + 20, spot.y + 10]] });
+    else if (type !== 'points') Object.assign(o, at);
+    Object.assign(o, extra || {});
     project.elements.push(Core.createElement(type, o));
     selected = project.elements.length - 1;
     update();
     renderEditor();
     fitView();
   }
-  function translate(e, dx, dy) {
-    if (e.type === 'grid') { e.x += dx; e.y += dy; }
-    else if (e.type === 'strip') { e.x1 += dx; e.x2 += dx; e.y1 += dy; e.y2 += dy; }
-    else if (e.type === 'circle') { e.cx += dx; e.cy += dy; }
+  const translate = (e, dx, dy) => Core.translateElement(e, dx, dy);
+
+  // ---------- draw path tool ----------
+  let drawing = null; // { points: [[x,y]], cursor: [x,y] | null }
+  function startDrawing() {
+    drawing = { points: [], cursor: null };
+    $('#draw-banner').hidden = false;
+    canvas.classList.add('drawing');
+    draw();
+  }
+  function finishDrawing(cancel) {
+    const pts = drawing ? drawing.points : [];
+    drawing = null;
+    $('#draw-banner').hidden = true;
+    canvas.classList.remove('drawing');
+    if (!cancel && pts.length >= 2) {
+      let closed = false;
+      if (pts.length >= 4) {
+        const f = pts[0], l = pts[pts.length - 1];
+        if (f[0] === l[0] && f[1] === l[1]) { pts.pop(); closed = true; }
+      }
+      addElement('path', { points: pts, closed });
+    } else draw();
+  }
+  function addDrawPoint(wx, wy) {
+    const p = [Math.round(wx), Math.round(wy)];
+    const pts = drawing.points;
+    const last = pts[pts.length - 1];
+    if (last && last[0] === p[0] && last[1] === p[1]) return; // double-click repeat
+    if (pts.length >= 3 && p[0] === pts[0][0] && p[1] === pts[0][1]) {
+      pts.push(p);
+      finishDrawing(false); // clicked the first point: close the loop
+      return;
+    }
+    pts.push(p);
+    draw();
+  }
+
+  // ---------- importers ----------
+  const askNumber = (msg, def) => {
+    const v = prompt(msg, String(def));
+    if (v === null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  function importImage(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const w = askNumber(`How many pixels wide should "${file.name}" be?`, 48);
+        if (!w) return;
+        const W = Math.min(400, Math.round(w));
+        const H = Math.max(1, Math.round((W * img.naturalHeight) / img.naturalWidth));
+        if (W * H > 160000) { alert('That is too big - choose a smaller width.'); return; }
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const g = c.getContext('2d');
+        g.drawImage(img, 0, 0, W, H);
+        const { mask } = Imp.maskFromRGBA(g.getImageData(0, 0, W, H).data, W, H);
+        addElement('bitmap', { name: file.name.replace(/\.[^.]+$/, ''), mask });
+      };
+      img.onerror = () => alert('Could not read that image.');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  const SVG_TAGS = ['path', 'line', 'polyline', 'polygon', 'rect', 'circle', 'ellipse'];
+  function importSVG(file) {
+    file.text().then((txt) => {
+      const doc = new DOMParser().parseFromString(txt, 'image/svg+xml');
+      if (doc.querySelector('parsererror') || !doc.documentElement || doc.documentElement.nodeName.toLowerCase() !== 'svg') {
+        alert('That is not a valid SVG file.'); return;
+      }
+      const shapes = [];
+      (function walk(node, m) {
+        for (const child of node.children) {
+          const tag = child.nodeName.toLowerCase();
+          if (['defs', 'clippath', 'mask', 'symbol', 'style', 'script', 'metadata', 'title', 'desc', 'pattern', 'marker'].includes(tag)) continue;
+          const cm = Imp.mul(m, Imp.parseTransform(child.getAttribute('transform')));
+          if (SVG_TAGS.includes(tag)) shapes.push({ tag, attr: (k) => child.getAttribute(k), matrix: cm });
+          if (child.children.length) walk(child, cm);
+        }
+      })(doc.documentElement, Imp.IDENTITY);
+      if (!shapes.length) { alert('No lines or shapes found in that SVG.'); return; }
+      const w = askNumber(`Found ${shapes.length} shape(s). How many pixels wide should the design be?`, 60);
+      if (!w) return;
+      const spot = nextFreeSpot();
+      const paths = Imp.svgShapesToPaths(shapes, w, spot.x, spot.y);
+      if (!paths.length) { alert('No usable lines in that SVG.'); return; }
+      if (paths.length > 300 && !confirm(`This SVG makes ${paths.length} separate lines. Import anyway?`)) return;
+      const base = file.name.replace(/\.[^.]+$/, '');
+      paths.forEach((p, i) => project.elements.push(Core.createElement('path', {
+        name: paths.length > 1 ? `${base} ${i + 1}` : base, points: p.points, closed: p.closed, newUniverse: i === 0,
+      })));
+      selected = project.elements.length - paths.length;
+      update(); renderEditor(); fitView();
+    });
+  }
+  function importPointsCSV(file) {
+    file.text().then((txt) => {
+      const { points } = Imp.parsePointsCSV(txt);
+      if (points.length < 1) { alert('No x / y values found in that file.'); return; }
+      const w = askNumber(`Found ${points.length} LEDs. How many pixels wide should the layout be?`, Math.min(200, Math.max(10, Math.round(Math.sqrt(points.length) * 2))));
+      if (!w) return;
+      const spot = nextFreeSpot();
+      addElement('points', { name: file.name.replace(/\.[^.]+$/, ''), points: Imp.fitPoints(points, w, spot.x, spot.y) });
+    });
   }
 
   // ---------- canvas ----------
@@ -451,6 +631,48 @@
       }
     }
 
+    // path handles
+    const vpts = editableVertices();
+    if (vpts) {
+      ctx.strokeStyle = cssVar('--accent');
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      vpts.forEach((p, i) => { const [x, y] = toScreen(p[0], p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      if (project.elements[selected].closed) ctx.closePath();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      vpts.forEach((p) => {
+        const [x, y] = toScreen(p[0], p[1]);
+        ctx.fillStyle = cssVar('--panel');
+        ctx.fillRect(x - 5, y - 5, 10, 10);
+        ctx.strokeRect(x - 5, y - 5, 10, 10);
+      });
+    }
+
+    // path being drawn
+    if (drawing) {
+      const pts = drawing.points.concat(drawing.cursor ? [drawing.cursor] : []);
+      ctx.strokeStyle = cssVar('--accent-2');
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      pts.forEach((p, i) => { const [x, y] = toScreen(p[0], p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+      drawing.points.forEach((p, i) => {
+        const [x, y] = toScreen(p[0], p[1]);
+        ctx.fillStyle = i === 0 ? cssVar('--accent-2') : cssVar('--panel');
+        ctx.beginPath(); ctx.arc(x, y, i === 0 ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = cssVar('--accent-2'); ctx.stroke();
+      });
+      if (drawing.cursor) {
+        const [x, y] = toScreen(drawing.cursor[0], drawing.cursor[1]);
+        ctx.fillStyle = cssVar('--text');
+        ctx.font = '12px system-ui, sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(`${drawing.cursor[0]}, ${drawing.cursor[1]}`, x + 10, y + 10);
+      }
+    }
+
     // start markers + labels
     ctx.font = '600 12px system-ui, sans-serif';
     ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
@@ -507,6 +729,21 @@
       return;
     }
     if (touches.size > 2) return;
+    if (drawing) {
+      drag = { mode: 'drawpan', sx, sy, ox: view.ox, oy: view.oy, moved: false };
+      return;
+    }
+    const vi = vertexHit(sx, sy);
+    if (vi >= 0) {
+      const e = project.elements[selected];
+      if (ev.altKey) {
+        if (e.points.length > 2) { e.points.splice(vi, 1); update({ list: false }); renderEditor(); }
+        drag = null;
+        return;
+      }
+      drag = { mode: 'vertex', index: vi };
+      return;
+    }
     const hit = hitTest(sx, sy);
     if (hit) {
       if (selected !== hit.element) select(hit.element);
@@ -527,6 +764,25 @@
       view.scale = Math.max(0.3, Math.min(120, drag.scale * (pi.dist / drag.dist)));
       view.ox = pi.mx - drag.wx * view.scale;
       view.oy = pi.my - drag.wy * view.scale;
+      draw();
+      return;
+    }
+    if (drag && drag.mode === 'drawpan') {
+      if (!drag.moved && Math.hypot(sx - drag.sx, sy - drag.sy) > 5) { drag.moved = true; view.userMoved = true; }
+      if (drag.moved) { view.ox = drag.ox + (sx - drag.sx); view.oy = drag.oy + (sy - drag.sy); draw(); }
+      return;
+    }
+    if (drag && drag.mode === 'vertex') {
+      const [wx, wy] = toWorld(sx, sy);
+      const e = project.elements[selected];
+      const np = [Math.round(wx), Math.round(wy)];
+      const cur = e.points[drag.index];
+      if (cur[0] !== np[0] || cur[1] !== np[1]) { e.points[drag.index] = np; update({ list: false }); }
+      return;
+    }
+    if (drawing) {
+      const [wx, wy] = toWorld(sx, sy);
+      drawing.cursor = [Math.round(wx), Math.round(wy)];
       draw();
       return;
     }
@@ -570,6 +826,12 @@
   const endDrag = (ev) => {
     touches.delete(ev.pointerId);
     if (drag && drag.mode === 'pinch' && touches.size > 0) return; // wait for last finger
+    if (drag && drag.mode === 'drawpan' && !drag.moved && drawing && ev.type === 'pointerup') {
+      const r = canvas.getBoundingClientRect();
+      const [wx, wy] = toWorld(ev.clientX - r.left, ev.clientY - r.top);
+      addDrawPoint(wx, wy);
+    }
+    if (drag && drag.mode === 'vertex') renderEditor();
     if (drag && drag.mode === 'move') renderElementList();
     drag = null;
     canvas.classList.remove('dragging');
@@ -577,6 +839,22 @@
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => { if (!drag) tooltip.hidden = true; });
+  canvas.addEventListener('dblclick', () => { if (drawing) finishDrawing(false); });
+
+  const editableVertices = () => {
+    const e = project.elements[selected];
+    return e && e.type === 'path' && !drawing && e.points.length <= 400 ? e.points : null;
+  };
+  function vertexHit(sx, sy) {
+    const pts = editableVertices();
+    if (!pts) return -1;
+    const lim = 8;
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const [x, y] = toScreen(pts[i][0], pts[i][1]);
+      if (Math.abs(x - sx) <= lim && Math.abs(y - sy) <= lim) return i;
+    }
+    return -1;
+  }
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     const r = canvas.getBoundingClientRect();
@@ -602,6 +880,16 @@
   function wire() {
     buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => updateSoon());
     document.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => addElement(b.dataset.add)));
+    $('#btn-draw').onclick = () => (drawing ? finishDrawing(false) : startDrawing());
+    $('#btn-draw-done').onclick = () => finishDrawing(false);
+    $('#btn-draw-cancel').onclick = () => finishDrawing(true);
+    const fileBtn = (btn, input, fn) => {
+      $(btn).onclick = () => $(input).click();
+      $(input).onchange = (ev) => { const f = ev.target.files[0]; if (f) fn(f); ev.target.value = ''; };
+    };
+    fileBtn('#btn-import-image', '#file-image', importImage);
+    fileBtn('#btn-import-svg', '#file-svg', importSVG);
+    fileBtn('#btn-import-csv', '#file-points', importPointsCSV);
 
     $('#btn-up').onclick = () => {
       if (selected > 0) {
@@ -692,6 +980,11 @@
       if (mod && !ev.altKey && (ev.key === 'z' || ev.key === 'Z')) { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
       if (mod && (ev.key === 'y' || ev.key === 'Y')) { ev.preventDefault(); redo(); return; }
       if (mod) return;
+      if (drawing) {
+        if (ev.key === 'Escape') { finishDrawing(true); return; }
+        if (ev.key === 'Enter') { finishDrawing(false); return; }
+        if (ev.key === 'Backspace') { ev.preventDefault(); drawing.points.pop(); draw(); return; }
+      }
       if (ev.key === 'f' || ev.key === 'F') { fitView(); return; }
       const e = project.elements[selected];
       if (!e) return;

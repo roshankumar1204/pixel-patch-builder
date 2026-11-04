@@ -92,8 +92,14 @@ input[type="range"] { padding: 0; width: 90px; accent-color: var(--accent); }
 .field.check { flex-direction: row; align-items: center; gap: 7px; grid-column: 1 / -1; }
 .field.check > span { color: var(--text); font-size: 12.5px; }
 
-.add-row { display: flex; gap: 6px; margin-bottom: 10px; }
-.add-row button { flex: 1; }
+.add-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.add-row button { padding: 7px 4px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.tool-group-label { font-size: 11px; color: var(--muted); margin: 2px 0 5px; }
+.form-heading { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.form-info { color: var(--muted); font-size: 12px; background: var(--panel-2); border-radius: 7px; padding: 6px 8px; }
+.draw-banner { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 12px; background: var(--panel-2); border-bottom: 1px solid var(--accent-2); font-size: 12.5px; }
+.draw-banner > span:last-child { display: flex; gap: 6px; }
+canvas.drawing { cursor: crosshair; }
 .element-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .element-list li {
   display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--line);

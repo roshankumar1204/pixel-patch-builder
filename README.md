@@ -15,21 +15,42 @@ and MADRIX imports the result.
 
 ## Features
 
-- **Draw the layout** – grids, strips and rings. Drag pixels to move an element,
-  pinch or scroll to zoom, Undo / Redo (Ctrl+Z / Ctrl+Shift+Z),
-  arrow keys to nudge (Shift = 10).
-- **Wiring options** – start corner, along rows or columns, snake/zig-zag.
-- **Auto-addressing** – RGB / RGBW / single / 5-channel pixels, max pixels per
-  universe, first universe (0 or 1), "start on new universe" or "new controller
-  port" per element.
-- **Live checks** – overlapping pixels, negative coordinates, sACN universe limit.
-- **Colour per universe** in the preview, wiring path and start markers, hover
-  any pixel to see its universe, channel, controller and port.
-- **Background image** – trace over a photo or plan of the building.
-- **Wiring sheet** – per element start/end universe, channel and controller/port,
-  as CSV or printable page for the installer.
-- **Export** – MADRIX CSV fixture list (comma, semicolon or tab separated).
-- **Save / open** projects as `.rizhu.json`; autosaves in the browser.
+**Shapes**
+- **Grid** – LED matrix / panel, any start corner, rows or columns, snake wiring.
+- **Strip** – straight line of pixels.
+- **Ring / Arc** – full ring or partial arc (Sweep °).
+- **Frame** – outline of a window, door or panel, clockwise or anticlockwise.
+- **Text** – two fonts: **5×7 dots** for LED matrices / pixel signs, and a
+  **single-line font** (Hershey) for letters built from LED strip or neon flex.
+- **Draw path** – click points on the canvas to trace any shape (building edges,
+  curves, outlines). Drag the square handles to adjust, Alt-click to remove a point.
+
+**Import**
+- **Image → pixels** – a logo or picture becomes a filled pixel layout
+  (transparent PNGs use the shape, other images use the dark parts; Invert swaps).
+- **SVG outline** – logos and CAD drawings become LED paths (curves, circles,
+  polygons, group transforms supported).
+- **Points CSV** – LED positions from MariMapper or any other mapping tool
+  (`x,y` / `x,y,z` / `index,x,y,z`, with or without a header).
+
+**For every shape**
+- **Rotate**, and **Repeat** it into N columns × M rows (e.g. 20 identical window
+  frames in one go), optionally starting each copy on a new universe.
+
+**Addressing and output**
+- RGB / RGBW / single / 5-channel pixels, max pixels per universe, first universe
+  (0 or 1), "start on new universe" or "new controller port" per element.
+- Live checks – overlapping pixels, negative coordinates, sACN universe limit,
+  layouts bigger than the largest MADRIX licence.
+- Colour per universe, wiring path and start markers; hover any pixel to see its
+  universe, channel, controller and port.
+- **Export** the MADRIX CSV fixture list (comma, semicolon or tab), plus a wiring
+  sheet (CSV or print) for the installer.
+
+**Editing**
+- Drag to move, arrow keys to nudge (Shift = 10), pinch or scroll to zoom,
+  **Undo / Redo** (Ctrl+Z / Ctrl+Shift+Z), background image to trace over.
+- Save / open projects as `.rizhu.json`; autosaves in the browser.
 - No install, no account, works offline, runs on Windows, macOS, Linux and phones.
 
 ## Use it
@@ -69,7 +90,9 @@ Position Z, DMX Universe, DMX Channel, Channel Count, Group, Controller, Port`.
 
 ```
 index.html        page layout
-src/core.js       layout generation, addressing, validation, CSV (no DOM, unit tested)
+src/core.js       shapes, addressing, validation, CSV (no DOM, unit tested)
+src/importers.js  CSV points, SVG geometry, image masks (no DOM, unit tested)
+vendor/           svg-path-properties (MIT) and Hershey font data (MIT) - see vendor/README.md
 src/app.js        UI: forms, canvas preview, drag/zoom, import/export
 src/styles.css    styles (light + dark)
 tests/            node:test unit tests
@@ -84,7 +107,7 @@ npm test
 ## Roadmap
 
 1. **Now** – patch builder + MADRIX CSV export.
-2. **Next** – camera auto-mapping (film the pixels, detect positions), more shapes
-   (polyline, arc, imported SVG paths), exports for other software.
+2. **Next** – camera auto-mapping (film the pixels, detect positions), templates
+   (common LED panels, facades), exports for other software (xLights, Resolume, WLED).
 3. **Later** – desktop app (Tauri) with live Art-Net / sACN output, network
    discovery and output health monitor.
