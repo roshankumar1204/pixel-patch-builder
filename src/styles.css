@@ -147,6 +147,12 @@ canvas.dragging { cursor: grabbing; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; }
+.about summary { cursor: pointer; list-style: none; }
+.about summary::-webkit-details-marker { display: none; }
+.about summary h2 { display: inline; }
+.about summary::after { content: ' +'; color: var(--muted); }
+.about[open] summary::after { content: ' –'; }
+.about p { color: var(--muted); margin: 8px 0 0; }
 .howto { margin: 0; padding-left: 18px; color: var(--muted); display: flex; flex-direction: column; gap: 5px; }
 .howto b { color: var(--text); }
 

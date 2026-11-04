@@ -1,0 +1,14 @@
+{
+  "name": "Rizhu Pixel Patch Builder",
+  "short_name": "Rizhu Patch",
+  "description": "Draw LED pixel layouts, auto-address DMX universes and export a CSV fixture list for MADRIX 5.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0d14",
+  "theme_color": "#7c3aed",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
