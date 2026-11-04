@@ -4,7 +4,7 @@ Draw an LED pixel layout, get every pixel addressed automatically, and export a
 CSV fixture list you can import straight into **MADRIX 5**. Patching that
 normally takes hours by hand takes a few minutes.
 
-Made by [Rizhu](https://rizhu.netlify.app/).
+Made by [Rizhu](https://rizhu.netlify.app/) · **Live: https://rizhu-pixel.netlify.app/**
 
 ## Why
 
@@ -16,6 +16,7 @@ and MADRIX imports the result.
 ## Features
 
 - **Draw the layout** – grids, strips and rings. Drag pixels to move an element,
+  pinch or scroll to zoom, Undo / Redo (Ctrl+Z / Ctrl+Shift+Z),
   arrow keys to nudge (Shift = 10).
 - **Wiring options** – start corner, along rows or columns, snake/zig-zag.
 - **Auto-addressing** – RGB / RGBW / single / 5-channel pixels, max pixels per

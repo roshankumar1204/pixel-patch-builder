@@ -46,7 +46,8 @@ button {
   font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 11px; cursor: pointer; white-space: nowrap;
 }
-button:hover { border-color: var(--accent); }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border: 0; font-weight: 600; }
 button.ghost { background: transparent; }

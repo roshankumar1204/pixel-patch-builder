@@ -194,7 +194,7 @@
     if (!e) { wrap.hidden = true; return; }
     wrap.hidden = false;
     $('#editor-title').textContent = `${TYPE_LABEL[e.type]} settings`;
-    buildForm($('#element-form'), ELEMENT_FIELDS[e.type], e, () => update({ list: true }));
+    buildForm($('#element-form'), ELEMENT_FIELDS[e.type], e, () => updateSoon({ list: true }));
   }
 
   function renderSummary() {
@@ -239,11 +239,70 @@
   }
 
   function update(what) {
+    clearTimeout(updateTimer);
+    updateTimer = null;
     patch = Core.buildPatch(project);
     renderSummary();
     if (!what || what.list) renderElementList();
     draw();
     scheduleSave();
+    scheduleHistory();
+    if (history.committed !== null) renderHistoryButtons();
+  }
+
+  // Big layouts: wait until typing pauses before recalculating.
+  let updateTimer = null;
+  function updateSoon(what) {
+    if (!patch || patch.totals.pixels < 50000) { update(what); return; }
+    clearTimeout(updateTimer);
+    updateTimer = setTimeout(() => update(what), 250);
+  }
+
+  // ---------- undo / redo ----------
+  const history = { undo: [], redo: [], committed: null, timer: null };
+  const snapshot = () => JSON.stringify({ settings: project.settings, elements: project.elements });
+  function scheduleHistory() {
+    clearTimeout(history.timer);
+    history.timer = setTimeout(commitHistory, 400);
+  }
+  function commitHistory() {
+    clearTimeout(history.timer);
+    const now = snapshot();
+    if (history.committed === null) { history.committed = now; return; }
+    if (now === history.committed) return;
+    history.undo.push(history.committed);
+    if (history.undo.length > 100) history.undo.shift();
+    history.redo = [];
+    history.committed = now;
+    renderHistoryButtons();
+  }
+  function restore(snap) {
+    const s = JSON.parse(snap);
+    project.settings = s.settings;
+    project.elements = s.elements;
+    selected = Math.min(Math.max(selected, 0), project.elements.length - 1);
+    buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => updateSoon());
+    update();
+    renderEditor();
+    renderHistoryButtons();
+  }
+  function undo() {
+    commitHistory();
+    if (!history.undo.length) return;
+    history.redo.push(history.committed);
+    history.committed = history.undo.pop();
+    restore(history.committed);
+  }
+  function redo() {
+    commitHistory();
+    if (!history.redo.length) return;
+    history.undo.push(history.committed);
+    history.committed = history.redo.pop();
+    restore(history.committed);
+  }
+  function renderHistoryButtons() {
+    $('#btn-undo').disabled = !history.undo.length && snapshot() === history.committed;
+    $('#btn-redo').disabled = !history.redo.length;
   }
 
   function select(i) {
@@ -428,13 +487,27 @@
   // pointer interaction
   let drag = null;
   const tooltip = $('#tooltip');
+  const touches = new Map(); // active pointers, for pinch zoom
+  const pinchInfo = () => {
+    const [a, b] = [...touches.values()];
+    return { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+  };
   canvas.addEventListener('pointerdown', (ev) => {
     const r = canvas.getBoundingClientRect();
     const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
-    const hit = hitTest(sx, sy);
+    touches.set(ev.pointerId, { x: sx, y: sy });
     canvas.setPointerCapture(ev.pointerId);
     canvas.classList.add('dragging');
     tooltip.hidden = true;
+    if (touches.size === 2) {
+      const pi = pinchInfo();
+      const [wx, wy] = toWorld(pi.mx, pi.my);
+      drag = { mode: 'pinch', dist: pi.dist, scale: view.scale, wx, wy };
+      view.userMoved = true;
+      return;
+    }
+    if (touches.size > 2) return;
+    const hit = hitTest(sx, sy);
     if (hit) {
       if (selected !== hit.element) select(hit.element);
       const [wx, wy] = toWorld(sx, sy);
@@ -447,6 +520,16 @@
   canvas.addEventListener('pointermove', (ev) => {
     const r = canvas.getBoundingClientRect();
     const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+    if (touches.has(ev.pointerId)) touches.set(ev.pointerId, { x: sx, y: sy });
+    if (drag && drag.mode === 'pinch') {
+      if (touches.size < 2) return;
+      const pi = pinchInfo();
+      view.scale = Math.max(0.3, Math.min(120, drag.scale * (pi.dist / drag.dist)));
+      view.ox = pi.mx - drag.wx * view.scale;
+      view.oy = pi.my - drag.wy * view.scale;
+      draw();
+      return;
+    }
     if (drag && drag.mode === 'pan') {
       view.ox = drag.ox + (sx - drag.sx);
       view.oy = drag.oy + (sy - drag.sy);
@@ -484,7 +567,9 @@
       canvas.style.cursor = '';
     }
   });
-  const endDrag = () => {
+  const endDrag = (ev) => {
+    touches.delete(ev.pointerId);
+    if (drag && drag.mode === 'pinch' && touches.size > 0) return; // wait for last finger
     if (drag && drag.mode === 'move') renderElementList();
     drag = null;
     canvas.classList.remove('dragging');
@@ -515,7 +600,7 @@
 
   // ---------- wire up controls ----------
   function wire() {
-    buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => update());
+    buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => updateSoon());
     document.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => addElement(b.dataset.add)));
 
     $('#btn-up').onclick = () => {
@@ -603,6 +688,10 @@
     document.addEventListener('keydown', (ev) => {
       const t = ev.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+      const mod = ev.ctrlKey || ev.metaKey;
+      if (mod && !ev.altKey && (ev.key === 'z' || ev.key === 'Z')) { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
+      if (mod && (ev.key === 'y' || ev.key === 'Y')) { ev.preventDefault(); redo(); return; }
+      if (mod) return;
       if (ev.key === 'f' || ev.key === 'F') { fitView(); return; }
       const e = project.elements[selected];
       if (!e) return;
@@ -616,6 +705,9 @@
         syncForm($('#element-form'), e);
       }
     });
+
+    $('#btn-undo').onclick = undo;
+    $('#btn-redo').onclick = redo;
 
     new ResizeObserver(resize).observe(wrap);
     window.addEventListener('pagehide', () => { if (saveTimer) saveNow(); });
@@ -635,7 +727,7 @@
   function replaceProject(p) {
     project = p;
     selected = project.elements.length ? 0 : -1;
-    buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => update());
+    buildForm($('#settings-form'), SETTINGS_FIELDS, project.settings, () => updateSoon());
     if (project.background) {
       $('#bg-width').value = project.background.width;
       $('#bg-opacity').value = project.background.opacity;
@@ -655,4 +747,6 @@
   }
   update();
   renderEditor();
+  commitHistory();
+  renderHistoryButtons();
 })();

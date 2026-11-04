@@ -120,3 +120,18 @@ test('default project builds without errors', () => {
   assert.ok(p.totals.pixels > 0);
   assert.equal(p.warnings.filter((w) => w.level === 'error').length, 0);
 });
+
+test('layouts over the pixel limit are skipped, not frozen', () => {
+  const p = Core.buildPatch(project([
+    Core.createElement('grid', { cols: 10, rows: 10 }),
+    Core.createElement('grid', { y: 20, cols: 1000, rows: 1000 }),
+  ]));
+  assert.equal(p.totals.pixels, 100);
+  assert.equal(p.elements[1].count, 0);
+  assert.ok(p.warnings.some((w) => w.level === 'error' && /skipped/.test(w.text)));
+});
+
+test('warns above the largest MADRIX licence', () => {
+  const p = Core.buildPatch(project([Core.createElement('grid', { cols: 600, rows: 600 })]));
+  assert.ok(p.warnings.some((w) => /largest MADRIX 5 licence/.test(w.text)));
+});

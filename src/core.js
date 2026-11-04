@@ -13,6 +13,8 @@
 
   const DMX_UNIVERSE_SIZE = 512;
   const MAX_SACN_UNIVERSE = 63999;
+  const MAX_TOTAL_PIXELS = 500000;
+  const MADRIX_MAX_CHANNELS = 2048 * 512; // largest MADRIX 5 licence (Maximum)
 
   const PIXEL_TYPES = {
     W: { channels: 1, label: 'Single colour (1 ch)', fixture: 'Generic Single' },
@@ -49,6 +51,13 @@
     const base = ELEMENT_DEFAULTS[type];
     if (!base) throw new Error('Unknown element type: ' + type);
     return Object.assign({}, base, overrides || {});
+  }
+
+  /** Number of pixels an element will produce, without generating them. */
+  function pixelCount(el) {
+    if (el.type === 'grid') return Math.max(0, int(el.cols)) * Math.max(0, int(el.rows));
+    if (el.type === 'strip' || el.type === 'circle') return Math.max(0, int(el.count));
+    return 0;
   }
 
   /** Returns pixel positions [{x,y,z}] in wiring order for one element. */
@@ -141,8 +150,17 @@
     const portOf = (u) => Math.floor((u - first) / upp); // 0-based port index overall
 
     (project.elements || []).forEach((el, ei) => {
-      const pos = generatePixels(el);
       const name = (el.name && String(el.name)) || el.type + ' ' + (ei + 1);
+      // Guard against layouts so big they would freeze the browser.
+      if (pixels.length + pixelCount(el) > MAX_TOTAL_PIXELS) {
+        warnings.push({
+          level: 'error',
+          text: `"${name}" was skipped: the layout would go over ${MAX_TOTAL_PIXELS.toLocaleString('en-US')} pixels. Make it smaller or split the project.`,
+        });
+        elements.push({ index: ei, name, type: el.type, count: 0 });
+        return;
+      }
+      const pos = generatePixels(el);
       if (pos.length === 0) {
         warnings.push({ level: 'warn', text: `"${name}" has no pixels.` });
         elements.push({ index: ei, name, type: el.type, count: 0 });
@@ -214,6 +232,12 @@
       });
     }
     const last = pixels[pixels.length - 1];
+    if (pixels.length * ch > MADRIX_MAX_CHANNELS) {
+      warnings.push({
+        level: 'warn',
+        text: `${(pixels.length * ch).toLocaleString('en-US')} DMX channels is more than the largest MADRIX 5 licence (Maximum: 2,048 universes / ${MADRIX_MAX_CHANNELS.toLocaleString('en-US')} channels).`,
+      });
+    }
     if (last && last.universe > MAX_SACN_UNIVERSE) {
       warnings.push({ level: 'error', text: `Universe ${last.universe} is above the sACN limit (${MAX_SACN_UNIVERSE}).` });
     }
@@ -312,6 +336,6 @@
 
   return {
     PIXEL_TYPES, ELEMENT_DEFAULTS, DMX_UNIVERSE_SIZE, CSV_COLUMNS,
-    createElement, generatePixels, normalizeSettings, buildPatch, toCSV, wiringCSV, defaultProject,
+    MAX_TOTAL_PIXELS, createElement, pixelCount, generatePixels, normalizeSettings, buildPatch, toCSV, wiringCSV, defaultProject,
   };
 });
