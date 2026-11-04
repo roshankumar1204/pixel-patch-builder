@@ -1,0 +1,38 @@
+# Netlify config – static site, no build step.
+[build]
+  publish = "."
+  command = ""
+
+# Security headers for every page
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+# Files are not fingerprinted, so always revalidate to pick up new deploys immediately
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Don't serve development files
+[[redirects]]
+  from = "/tests/*"
+  to = "/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/"
+  status = 302
+  force = true

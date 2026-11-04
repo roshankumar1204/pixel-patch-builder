@@ -41,6 +41,13 @@ Or serve the folder locally:
 npx serve .
 ```
 
+## Hosting (Netlify)
+
+`netlify.toml` holds all settings (no build step, publish the repo root,
+security headers, always-fresh caching). In Netlify: **Add new site → Import an
+existing project → GitHub → pixel-patch-builder → Deploy**. Every push to
+`main` redeploys automatically.
+
 ## Import into MADRIX 5
 
 1. Patch Editor → **File → Import Fixture List…**
